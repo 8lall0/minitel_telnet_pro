@@ -37,7 +37,7 @@ void loadPrefs();
 void readPresets();
 void showPrefs();
 int setPrefs();
-void separateUrl(String url);
+void separateUrl(String urlToSeparate);
 int setParameter(int x, int y, String& destination, bool mask, bool allowBlank, int (*httpHandler)());
 void setIntParameter(int x, int y, uint16_t& destination);
 void clearLineFromCursor();
@@ -58,7 +58,7 @@ void cycleConnectionType(int x, int y);
 void loadPresets();
 void printPassword(String password);
 void displayPresets(String title);
-void writeConnectionType(byte connectionType);
+void writeConnectionType(byte connType);
 String inputString(String defaultValue, int& exitCode, char padChar, int (*httpHandler)());
 unsigned int numberOfChars(String str);
 int manageHttpConnection();
@@ -99,10 +99,10 @@ String sshPrivKey("");
 byte connectionType = 0; // 0=Telnet 1=Websocket 2=SSH 3=Serial
 bool ssl = false;
 
-typedef struct
+
+typedef struct Preset_s
 {
     String presetName = "";
-
     String url = "";
     bool scroll = false;
     bool echo = false;
@@ -138,7 +138,7 @@ void initFS()
     }
     if (!ok)
     {
-        //debugPrintf("%% Aborting now. Problem initializing Filesystem. System HALTED\n");
+        debugPort.printf("%% Aborting now. Problem initializing Filesystem. System HALTED\n");
         minitel.println("System HALTED.");
         minitel.println("problem initializing filesystem");
         while (true)
@@ -146,9 +146,7 @@ void initFS()
             delay(5000);
         }
     }
-    /*debugPrintf(
-        "%% Mounted SPIFFS used=%d total=%d\r\n", SPIFFS.usedBytes(),
-        SPIFFS.totalBytes());*/
+    debugPort.printf("%% Mounted SPIFFS used=%d total=%d\r\n", SPIFFS.usedBytes(), SPIFFS.totalBytes());
 }
 
 // ESP_RST_POWERON = 1 = pressed hardware reset button
@@ -159,10 +157,10 @@ esp_reset_reason_t reset_reason;
 void setup()
 {
     reset_reason = esp_reset_reason();
-    /*debugBegin(115200);
-    debugPrintln("----------------");
-    debugPrintln("Debug ready");
-    debugPrintf("RESET_REASON = %d\n", reset_reason);*/
+    debugPort.begin(115200);
+    debugPort.println("----------------");
+    debugPort.println("Debug ready");
+    debugPort.printf("RESET_REASON = %d\n", reset_reason);
 
     // Minitel setup
     // (don't) teletelMode();
@@ -184,7 +182,7 @@ void setup()
     advanced = speed > 1200;
 
     // minitel.changeSpeed(speed);
-    //debugPrintf("Minitel baud set to %d\n", speed);
+    debugPort.printf("Minitel baud set to %d\n", speed);
 
     bool connectionOk = true;
     do
@@ -206,10 +204,10 @@ void setup()
         minitel.pageMode();
 
         loadPrefs();
-        //debugPrintln("Prefs loaded");
+        debugPort.println("Prefs loaded");
 
         readPresets();
-        //debugPrintln("Presets loaded");
+        debugPort.println("Presets loaded");
 
         showPrefs();
         setPrefs();
@@ -231,7 +229,7 @@ void setup()
             // TELNET --------------------------------------------------------------------------------------
             // Telnet server connection
             delay(100);
-            //debugPrintf("Connecting to %s\n", host.c_str());
+            debugPort.printf("Connecting to %s\n", host.c_str());
             minitel.print("Connecting to ");
             minitel.print(host);
             minitel.print(":");
@@ -239,11 +237,11 @@ void setup()
 
             if (telnet.connect(host.c_str(), port))
             {
-                //debugPrintln("Connected");
+                debugPort.println("Connected");
             }
             else
             {
-                //debugPrintln("Connection failed");
+                debugPort.println("Connection failed");
                 minitel.println();
                 minitel.println("Connection Refused. Press any key");
                 while (minitel.getKeyCode() == 0) {}
@@ -253,8 +251,8 @@ void setup()
         else if (connectionType == 1)
         {
             // WEBSOCKET -----------------------------------------------------------------------------
-            /*debugPrintf("ssl=%d, host=%s, port=%d, path=%s, protocol='%s'\n", ssl, host.c_str(), port, path.c_str(),
-                        protocol.c_str());*/
+            debugPort.printf("ssl=%d, host=%s, port=%d, path=%s, protocol='%s'\n", ssl, host.c_str(), port, path.c_str(),
+                        protocol.c_str());
 
             if (protocol == "")
             {
@@ -263,7 +261,7 @@ void setup()
             }
             else
             {
-                //debugPrintf("  - subprotocol added\n");
+                debugPort.printf("  - subprotocol added\n");
                 if (ssl) webSocket.beginSSL(host.c_str(), port, path.c_str(), protocol.c_str());
                 else webSocket.begin(host.c_str(), port, path.c_str(), protocol.c_str());
             }
@@ -272,7 +270,7 @@ void setup()
 
             if (ping_ms != 0)
             {
-                //debugPrintf("  - heartbeat ping added\n");
+                debugPort.printf("  - heartbeat ping added\n");
                 // start heartbeat (optional)
                 // ping server every ping_ms
                 // expect pong from server within 3000 ms
@@ -283,23 +281,16 @@ void setup()
         else if (connectionType == 2)
         {
             // SSH ---------------------------------------------------------------------------------------
-            //debugPrintf("\n> SSH task setup\n");
+            debugPort.printf("\n> SSH task setup\n");
             BaseType_t xReturned = xTaskCreatePinnedToCore(sshTask, "sshTask", 51200, nullptr,
                                                            (configMAX_PRIORITIES - 1), &sshTaskHandle, ARDUINO_RUNNING_CORE);
             if (xReturned != pdPASS)
             {
-                //debugPrintf("  > Failed to create task\n");
+                debugPort.printf("  > Failed to create task\n");
             }
         }
         else if (connectionType == 3)
         {
-            // Serial ------------------------------------------------------------------------------------
-#ifdef DEBUG
-            debugPrintf("Serial redirection at %u bauds - 7E1\n", speed);
-            debugPrintf("*** Debug end ***\n");
-            debugPort.end();
-#endif
-
             debugPort.begin(speed, SERIAL_7E1);
             debugPort.println();
             debugPort.println("Minitel serial port setup");
@@ -369,7 +360,7 @@ void setup()
     if (connectionType != 3)
     {
         // debug port used for serial
-        //debugPrintln("Minitel initialized");
+        debugPort.println("Minitel initialized");
     }
 }
 
@@ -391,7 +382,7 @@ void loopTelnet()
     {
         const int tmp = telnet.read();
         minitel.writeByte(static_cast<byte>(tmp));
-        //debugPrintf("[telnet] 0x%X\n", tmp);
+        debugPort.printf("[telnet] 0x%X\n", tmp);
     }
 
     if (minitelPort.available() > 0)
@@ -415,7 +406,7 @@ void loopTelnet()
         }
         functionKey = (tmp == 0x13);
         telnet.write((uint8_t)tmp);
-        //debugPrintf("[keyboard] 0x%X\n", tmp);
+        debugPort.printf("[keyboard] 0x%X\n", tmp);
     }
 }
 
@@ -459,7 +450,7 @@ void loopSerial()
     }
 }
 
-String inputString(String defaultValue, int& exitCode, char padChar, int (*httpHandler)())
+String inputString(String defaultValue, int& exitCode, const char padChar, int (*httpHandler)())
 {
     String out = defaultValue == nullptr ? "" : defaultValue;
     minitel.print(out);
@@ -486,7 +477,7 @@ String inputString(String defaultValue, int& exitCode, char padChar, int (*httpH
 
         if (key != 0)
         {
-            //debugPrintf("Key = %u\n", key);
+            debugPort.printf("Key = %lu\n", key);
             String str = minitel.getString(key);
             if (str != "")
             {
@@ -567,7 +558,7 @@ unsigned int numberOfChars(String str)
 void loadPrefs()
 {
     prefs.begin("telnet-pro", true);
-    //debugPrintln("freeEntries = " + String(prefs.freeEntries()));
+    debugPort.println("freeEntries = " + String(prefs.freeEntries()));
     ssid = prefs.getString("ssid", "");
     password = prefs.getString("password", "");
     url = prefs.getString("url", "");
@@ -911,9 +902,9 @@ void showPrefs()
     minitel.attributs(CARACTERE_BLANC);
 }
 
-void printPassword(String password)
+void printPassword(String pwd)
 {
-    if (password == nullptr || password == "")
+    if (pwd == nullptr || pwd == "")
     {
         minitel.print("-undefined-");
     }
@@ -951,7 +942,7 @@ int setPrefs()
         if (wifiStatus == WIFI_BEGIN)
         {
             wifiStatus = WIFI_WAITING;
-            //debugPrintln("Connecting to WiFi");
+            debugPort.println("Connecting to WiFi");
             showWifiStatus();
             WiFi.disconnect();
             WiFi.begin(ssid.c_str(), password.c_str());
@@ -963,19 +954,19 @@ int setPrefs()
             if (WiFiClass::status() == WL_CONNECTED)
             {
                 wifiStatus = WIFI_CONNECTED;
-                //debugPrintln(" DONE");
+                debugPort.println(" DONE");
                 showWifiStatus();
             }
             else if (millis() - startMs > WIFI_TIMEOUT)
             {
                 wifiStatus = WIFI_ABORTED;
-                //debugPrintln(" FAILED");
+                debugPort.println(" FAILED");
                 showWifiStatus();
             }
             else
             {
                 delay(200);
-                //debugPrint('%');
+                debugPort.print('%');
             }
         }
 
@@ -983,7 +974,7 @@ int setPrefs()
         if (key != 0)
         {
             valid = true;
-            //debugPrintf("Key = %u\n", key);
+            debugPort.printf("Key = %lu\n", key);
             if (key == 18 || key == 4937)
             {
                 // CTRL+R = RESET ou TS+CONNEXION
@@ -1059,7 +1050,7 @@ int setPrefs()
             {
                 if (serverStatus == HTTP_SERVER_CLOSED && WiFiClass::status() == WL_CONNECTED)
                 {
-                    //debugPrintln("Server begin");
+                    debugPort.println("Server begin");
                     server.begin();
                     serverStatus = HTTP_SERVER_READY;
                 }
@@ -1080,7 +1071,7 @@ int setPrefs()
                     minitel.println();
                 }
 
-                //debugPrintln("Server end");
+                debugPort.println("Server end");
                 serverStatus = HTTP_SERVER_CLOSED;
                 server.end();
             }
@@ -1108,7 +1099,7 @@ int setPrefs()
         key = minitel.getKeyCode();
     }
     //server.end();
-    //debugPrintln("Server end");
+    debugPort.println("Server end");
     serverStatus = HTTP_SERVER_CLOSED;
     minitel.newXY(1, 0);
     minitel.cancel();
@@ -1139,7 +1130,7 @@ void savePresets()
         else if ((key | 32) >= 'a' && (key | 32) <= 'a' + 20 - 1)
         {
             int slot = (key | 32) - 'a';
-            //debugPrintf("slot = %d\n", slot);
+            debugPort.printf("slot = %d\n", slot);
             minitel.newXY(1, 24);
             minitel.attributs(CARACTERE_VERT);
             minitel.print("      Name your slot, ESC to cancel");
@@ -1199,7 +1190,7 @@ void loadPresets()
         else if ((key | 32) >= 'a' && (key | 32) <= 'a' + 20 - 1)
         {
             int slot = (key | 32) - 'a';
-            //debugPrintf("slot = %d\n", slot);
+            debugPort.printf("slot = %d\n", slot);
             if (presets[slot].presetName == "")
             {
                 continue;
@@ -1239,7 +1230,7 @@ void loadPresets()
 
 void displayPresets(String title)
 {
-    static char* alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     minitel.newScreen();
     minitel.newXY(1, 1);
     minitel.attributs(DOUBLE_HAUTEUR);
@@ -1256,27 +1247,27 @@ void displayPresets(String title)
     }
 }
 
-void cycleConnectionType(int x, int y)
+void cycleConnectionType(const int x, const int y)
 {
     connectionType = (connectionType + 1) % 4;
     minitel.newXY(x, y);
     writeConnectionType(connectionType);
 }
 
-void switchParameter(int x, int y, bool& destination)
+void switchParameter(const int x, const int y, bool& destination)
 {
     destination = !destination;
     minitel.newXY(x, y);
     writeBool(destination);
 }
 
-int setParameter(int x, int y, String& destination, bool mask, bool allowBlank, int (*httpHandler)())
+int setParameter(const int x, const int y, String& destination, const bool mask, const bool allowBlank, int (*httpHandler)())
 {
     minitel.newXY(x, y);
     minitel.attributs(CARACTERE_BLANC);
     minitel.print(destination);
     int len = 41 - x - numberOfChars(destination);
-    //debugPrintf("************ %d ***********\n", len);
+    debugPort.printf("************ %d ***********\n", len);
     if (len < 0) len = 0;
     for (int i = 0; i < len; ++i) minitel.print(".");
     minitel.newXY(x, y);
@@ -1322,7 +1313,7 @@ int setParameter(int x, int y, String& destination, bool mask, bool allowBlank, 
     return exitCode;
 }
 
-void setIntParameter(int x, int y, uint16_t& destination)
+void setIntParameter(const int x, const int y, uint16_t& destination)
 {
     String strParam = String(destination);
     if (strParam == "0") strParam = "";
@@ -1332,7 +1323,7 @@ void setIntParameter(int x, int y, uint16_t& destination)
     for (int i = 0; i < 41 - x - String(destination).length(); ++i) minitel.print(".");
     minitel.newXY(x, y);
     int exitCode = 0;
-    String temp = inputString(strParam, exitCode, '.', nullptr);
+    const String temp = inputString(strParam, exitCode, '.', nullptr);
     if (!exitCode && temp.length() > 0)
     {
         destination = temp.toInt();
@@ -1343,7 +1334,7 @@ void setIntParameter(int x, int y, uint16_t& destination)
     clearLineFromCursor();
 }
 
-void writeBool(bool value)
+void writeBool(const bool value)
 {
     if (value)
     {
@@ -1358,9 +1349,9 @@ void writeBool(bool value)
     minitel.attributs(CARACTERE_BLANC);
 }
 
-void writeConnectionType(byte connectionType)
+void writeConnectionType(const byte connType)
 {
-    if (connectionType == 0)
+    if (connType == 0)
     {
         minitel.attributs(CARACTERE_BLANC);
         minitel.attributs(INVERSION_FOND);
@@ -1375,7 +1366,7 @@ void writeConnectionType(byte connectionType)
     minitel.attributs(FOND_NORMAL);
     minitel.print("/");
 
-    if (connectionType == 1)
+    if (connType == 1)
     {
         minitel.attributs(CARACTERE_BLANC);
         minitel.attributs(INVERSION_FOND);
@@ -1391,7 +1382,7 @@ void writeConnectionType(byte connectionType)
     minitel.attributs(FOND_NORMAL);
     minitel.print("/");
 
-    if (connectionType == 2)
+    if (connType == 2)
     {
         minitel.attributs(CARACTERE_BLANC);
         minitel.attributs(INVERSION_FOND);
@@ -1407,7 +1398,7 @@ void writeConnectionType(byte connectionType)
     minitel.attributs(FOND_NORMAL);
     minitel.print("/");
 
-    if (connectionType == 3)
+    if (connType == 3)
     {
         minitel.attributs(CARACTERE_BLANC);
         minitel.attributs(INVERSION_FOND);
@@ -1423,10 +1414,10 @@ void writeConnectionType(byte connectionType)
     minitel.attributs(FOND_NORMAL);
 }
 
-void separateUrl(String url)
+void separateUrl(String urlToSeparate)
 {
-    url.trim();
-    String temp = String(url);
+    urlToSeparate.trim();
+    String temp = String(urlToSeparate);
     temp.toLowerCase();
 
     ssl = false;
@@ -1434,58 +1425,58 @@ void separateUrl(String url)
     if (temp.startsWith("wss://"))
     {
         ssl = true;
-        url.remove(0, 6);
+        urlToSeparate.remove(0, 6);
     }
     else if (temp.startsWith("ws://"))
     {
         ssl = false;
-        url.remove(0, 5);
+        urlToSeparate.remove(0, 5);
     }
     else if (temp.startsWith("wss:"))
     {
         ssl = true;
-        url.remove(0, 4);
+        urlToSeparate.remove(0, 4);
     }
     else if (temp.startsWith("ws:"))
     {
         ssl = false;
-        url.remove(0, 3);
+        urlToSeparate.remove(0, 3);
     }
     else if (temp.startsWith("ssh://"))
     {
-        url.remove(0, 6);
+        urlToSeparate.remove(0, 6);
     }
     else if (temp.startsWith("ssh:"))
     {
-        url.remove(0, 4);
+        urlToSeparate.remove(0, 4);
     }
 
-    int colon = url.indexOf(':');
-    int slash = url.indexOf('/');
+    int colon = urlToSeparate.indexOf(':');
+    int slash = urlToSeparate.indexOf('/');
 
     if (slash == -1 && colon == -1)
     {
-        host = url;
+        host = urlToSeparate;
         port = 0;
         path = "/";
     }
     else if (slash == -1 && colon != -1)
     {
-        host = url.substring(0, colon);
-        port = url.substring(colon + 1).toInt();
+        host = urlToSeparate.substring(0, colon);
+        port = urlToSeparate.substring(colon + 1).toInt();
         path = "/";
     }
     else if (slash != -1 && colon == -1)
     {
-        host = url.substring(0, slash);
+        host = urlToSeparate.substring(0, slash);
         port = 0;
-        path = url.substring(slash);
+        path = urlToSeparate.substring(slash);
     }
     else if (slash != -1 && colon != -1)
     {
-        host = url.substring(0, colon);
-        port = url.substring(colon + 1, slash).toInt();
-        path = url.substring(slash);
+        host = urlToSeparate.substring(0, colon);
+        port = urlToSeparate.substring(colon + 1, slash).toInt();
+        path = urlToSeparate.substring(slash);
     }
 
     if (port == 0)
@@ -1522,12 +1513,12 @@ void loopSsh()
 
 void sshTask(void* pvParameters)
 {
-    //debugPrintf("\n> SSH task running\n");
+    debugPort.printf("\n> SSH task running\n");
 
     // Open ssh session
-    //debugPrintf("  Connecting to %s as %s\n", host.c_str(), sshUser.c_str());
+    debugPort.printf("  Connecting to %s as %s\n", host.c_str(), sshUser.c_str());
     bool isOpen = sshClient.begin(host.c_str(), port, sshUser.c_str(), sshPass.c_str(), privKey, sshPrivKey.c_str());
-    if (!isOpen) //debugPrintf("  > SSH authentication failed\n");
+    if (!isOpen) debugPort.printf("  > SSH authentication failed\n");
 
     // Loop task
     while (true)
@@ -1536,7 +1527,7 @@ void sshTask(void* pvParameters)
         // Check ssh channel
         if (!sshClient.available())
         {
-            //debugPrintf("ssh channel lost\n");
+            debugPort.printf("ssh channel lost\n");
             break;
         }
 
@@ -1544,12 +1535,12 @@ void sshTask(void* pvParameters)
         int nbytes = sshClient.receive();
         if (nbytes < 0)
         {
-            //debugPrintf("  > SSH Error while receiving\n");
+            debugPort.printf("  > SSH Error while receiving\n");
             break;
         }
         if (nbytes > 0)
         {
-            //debugPrintf("[SSH] got %u bytes\n", nbytes);
+            debugPort.printf("[SSH] got %u bytes\n", nbytes);
             int index = 0;
             while (index < nbytes)
             {
@@ -1580,7 +1571,7 @@ void sshTask(void* pvParameters)
             if (!col80 && prestel) teletelMode();
             break;
         }
-        //debugPrintf("[KB] got code: 0x%X\n", key);
+        debugPort.printf("[KB] got code: 0x%X\n", key);
         switch (key)
         {
         // redirect minitel special keys
@@ -1609,12 +1600,12 @@ void sshTask(void* pvParameters)
         size_t len = 0;
         for (len = 0; key != 0 && len < 4; len++)
         {
-            payload[3 - len] = uint8_t(key);
+            payload[3 - len] = static_cast<uint8_t>(key);
             key = key >> 8;
         }
         if (sshClient.send(payload + 4 - len, len) < 0)
         {
-            //debugPrintf("  > SSH Error while sending\n");
+            debugPort.printf("  > SSH Error while sending\n");
             break;
         }
         // Intercept CTRL+C:
@@ -1622,7 +1613,7 @@ void sshTask(void* pvParameters)
         // we ignore received data to avoid this
         if (cancel)
         {
-            //debugPrintf(" > Intercepted ctrl+C\n");
+            debugPort.printf(" > Intercepted ctrl+C\n");
             int nbyte = sshClient.flushReceiving();
             if (col80)
             {
@@ -1642,11 +1633,11 @@ void sshTask(void* pvParameters)
         }
     }
     // Closing session
-    //debugPrintf(" >  Session closed\n");
+    debugPort.printf(" >  Session closed\n");
     sshClient.end();
 
     // Reinit minitel and Self delete ssh task
-    //debugPrintf("\n> SSH task end\n");
+    debugPort.printf("\n> SSH task end\n");
 
     modeVideotex();
     minitel.newXY(1, 1);
@@ -1678,25 +1669,25 @@ void loopWebsocket()
             minitel.pageMode();
             reset();
         }
-        //debugPrintf("[KB] got code: 0x%X\n", key);
+        debugPort.printf("[KB] got code: 0x%X\n", key);
         // prepare data to send over websocket
         uint8_t payload[4];
         size_t len = 0;
         for (len = 0; key != 0 && len < 4; len++)
         {
-            payload[3 - len] = uint8_t(key);
+            payload[3 - len] = static_cast<uint8_t>(key);
             key = key >> 8;
         }
         webSocket.sendTXT(payload + 4 - len, len);
     }
 }
 
-void webSocketEvent(WStype_t type, uint8_t* payload, size_t len)
+void webSocketEvent(const WStype_t type, uint8_t* payload, const size_t len)
 {
     switch (type)
     {
     case WStype_DISCONNECTED:
-        //debugPrintf("[WS] Disconnected!\n");
+        debugPort.printf("[WS] Disconnected!\n");
         /*
               minitel.println();
               minitel.println("DISCONNECTING...");
@@ -1709,14 +1700,14 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t len)
         break;
 
     case WStype_CONNECTED:
-        //debugPrintf("[WS] Connected to url: %s\n", payload);
+        debugPort.printf("[WS] Connected to url: %s\n", payload);
         break;
 
     case WStype_TEXT:
-        //debugPrintf("[WS] got %u chars\n", len);
+        debugPort.printf("[WS] got %u chars\n", len);
         if (len > 0)
         {
-            //debugPrintf("  >  %s\n", payload);
+            debugPort.printf("  >  %s\n", payload);
             for (size_t i = 0; i < len; i++)
             {
                 minitel.writeByte(payload[i]);
@@ -1725,10 +1716,10 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t len)
         break;
 
     case WStype_BIN:
-        //debugPrintf("[WS] got %u binaries\n", len);
+        debugPort.printf("[WS] got %u binaries\n", len);
         if (len > 0)
         {
-            //debugPrintf("  >  %s\n", payload);
+            debugPort.printf("  >  %s\n", payload);
             for (size_t i = 0; i < len; i++)
             {
                 minitel.writeByte(payload[i]);
@@ -1737,23 +1728,23 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t len)
         break;
 
     case WStype_ERROR:
-        //debugPrintf("[WS] WStype_ERROR\n");
+        debugPort.printf("[WS] WStype_ERROR\n");
         break;
 
     case WStype_FRAGMENT_TEXT_START:
-        //debugPrintf("[WS] WStype_FRAGMENT_TEXT_START\n");
+        debugPort.printf("[WS] WStype_FRAGMENT_TEXT_START\n");
         break;
 
     case WStype_FRAGMENT_BIN_START:
-        //debugPrintf("[WS] WStype_FRAGMENT_BIN_START\n");
+        debugPort.printf("[WS] WStype_FRAGMENT_BIN_START\n");
         break;
 
     case WStype_FRAGMENT:
-        //debugPrintf("[WS] WStype_FRAGMENT\n");
+        debugPort.printf("[WS] WStype_FRAGMENT\n");
         break;
 
     case WStype_FRAGMENT_FIN:
-        //debugPrintf("[WS] WStype_FRAGMENT_FIN\n");
+        debugPort.printf("[WS] WStype_FRAGMENT_FIN\n");
         break;
     }
 }
@@ -1783,7 +1774,7 @@ void writePresets()
 
         if (serializeJson(doc, file) == 0)
         {
-            //debugPrintln(F("Failed to write to file"));
+            debugPort.println(F("Failed to write to file"));
         }
     }
     file.close();
@@ -2250,7 +2241,7 @@ void showHelp()
     uint32_t key;
     do
     {
-        while ((key = minitel.getKeyCode()) == 0);
+        while ((key = minitel.getKeyCode()) == 0) {}
         if (key == 27 || key == 4933 || key == 4934)
         {
             break;
@@ -2277,7 +2268,7 @@ int manageHttpConnection()
     if (!client) return 0;
 
     serverStatus = HTTP_SERVER_CLIENT_CONNECTED;
-    //debugPrintln("New Client.");
+    debugPort.println("New Client.");
     String currentLine = "";
     int contentLength = -1;
     while (client.connected())
@@ -2289,7 +2280,7 @@ int manageHttpConnection()
             header += c;
             if (header.length() > HTTP_SERVER_HEADER_MAX_LENGTH - 1)
             {
-                //debugPrintln("header too big");
+                debugPort.println("header too big");
                 serverStatus = HTTP_SERVER_HEADER_OVERSIZED;
             }
 
@@ -2301,7 +2292,7 @@ int manageHttpConnection()
                 }
                 if (contentLength > HTTP_SERVER_BODY_MAX_LENGTH)
                 {
-                    //debugPrintln("body too big");
+                    debugPort.println("body too big");
                     serverStatus = HTTP_SERVER_BODY_OVERSIZED;
                 }
                 if (currentLine.length() == 0)
@@ -2370,7 +2361,7 @@ int manageHttpConnection()
     client.println();
 
     client.stop();
-    //debugPrintln("Client disconnected.");
-    //debugPrintln("");
+    debugPort.println("Client disconnected.");
+    debugPort.println("");
     return (serverStatus == HTTP_SERVER_BODY_COMPLETE);
 }
