@@ -3,7 +3,6 @@
 #ifndef MINITEL_TELNET_PRO_SSHCLIENT_H
 #define MINITEL_TELNET_PRO_SSHCLIENT_H
 
-
 #include <libssh/libssh.h>
 
 class SSHClient {

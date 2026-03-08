@@ -5,7 +5,6 @@
 #include <libssh/libssh.h>
 #include "sshClient.h"
 
-
 SSHClient::SSHClient() = default;
 
 bool SSHClient::begin(const char* host, const int port, const char* username, const char* password, bool isPrivKey,
@@ -13,10 +12,12 @@ bool SSHClient::begin(const char* host, const int port, const char* username, co
 {
     privkey = nullptr;
     libssh_begin();
-    SSHStatus status = start_session(host, port, username, password, isPrivKey, sshPrivKey);
-    if (status != SSHStatus::OK) return false;
-    if (!open_channel()) return false;
-    if (SSH_OK != interactive_shell_session()) return false;
+    const SSHStatus status = start_session(host, port, username, password, isPrivKey, sshPrivKey);
+    if (status != SSHStatus::OK || !open_channel() || SSH_OK != interactive_shell_session())
+    {
+        return false;
+    }
+
     return true;
 }
 
@@ -64,33 +65,6 @@ int SSHClient::send(const void* buffer, const uint32_t len) const
     if (rc == SSH_ERROR) return -1;
     return rc;
 }
-
-//bool SSHClient::poll(Minitel* minitel) {
-//    if (!ssh_channel_is_open(_channel) || ssh_channel_is_eof(_channel)) {
-//        return false;
-//    }
-//
-//    memset(_readBuffer, '\0', sizeof(_readBuffer));
-//
-//    const int nbytes = ssh_channel_read_nonblocking(_channel, _readBuffer, sizeof(_readBuffer), 0);
-//    if (nbytes > 0) {
-//        //minitel->printRaw(_readBuffer, nbytes);
-//        int index = 0;
-//        while (index < nbytes) {
-//          minitel->writeByte(_readBuffer[index++]);
-//        }
-//    }
-//    char writeBuffer[4] = { 0 };
-//    const size_t len = getMinitelInput(minitel->getKeyCode(), writeBuffer);
-//    if (len == 0) {
-//        usleep(50000L);
-//    }
-//    else {
-//        ssh_channel_write(_channel, writeBuffer, len);
-//    }
-//
-//    return true;
-//}
 
 void SSHClient::end() const
 {
@@ -202,11 +176,6 @@ int SSHClient::interactive_shell_session() const
     {
         return ret;
     }
-
-    //    ret = ssh_channel_change_pty_size(_channel, 79, 24);
-    //    if (ret != SSH_OK) {
-    //        return ret;
-    //    }
 
     ret = ssh_channel_request_shell(_channel);
     if (ret != SSH_OK)

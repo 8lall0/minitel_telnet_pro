@@ -51,16 +51,16 @@ void loopTelnet();
 void loopWebsocket();
 void loopSsh();
 void loopSerial();
-void printStringValue(String s);
+void printStringValue(const String& s);
 void savePresets();
 void prestelMode();
 void cycleConnectionType(int x, int y);
 void loadPresets();
-void printPassword(String password);
-void displayPresets(String title);
+void printPassword(const String& pwd);
+void displayPresets(const String& title);
 void writeConnectionType(byte connType);
-String inputString(String defaultValue, int& exitCode, char padChar, int (*httpHandler)());
-unsigned int numberOfChars(String str);
+String inputString(const String& defaultValue, int& exitCode, char padChar, int (*httpHandler)());
+unsigned int numberOfChars(const String& str);
 int manageHttpConnection();
 void writePresets();
 
@@ -212,10 +212,10 @@ void setup()
         showPrefs();
         setPrefs();
 
-        // WiFi connection
+        // Wi-Fi connection
         if (connectionType != 3)
         {
-            // wifi not needed for serial
+            // Wi-Fi not needed for serial
 
             separateUrl(url);
 
@@ -244,15 +244,18 @@ void setup()
                 debugPort.println("Connection failed");
                 minitel.println();
                 minitel.println("Connection Refused. Press any key");
-                while (minitel.getKeyCode() == 0) {}
+                while (minitel.getKeyCode() == 0)
+                {
+                }
                 connectionOk = false;
             }
         }
         else if (connectionType == 1)
         {
             // WEBSOCKET -----------------------------------------------------------------------------
-            debugPort.printf("ssl=%d, host=%s, port=%d, path=%s, protocol='%s'\n", ssl, host.c_str(), port, path.c_str(),
-                        protocol.c_str());
+            debugPort.printf("ssl=%d, host=%s, port=%d, path=%s, protocol='%s'\n", ssl, host.c_str(), port,
+                             path.c_str(),
+                             protocol.c_str());
 
             if (protocol == "")
             {
@@ -283,7 +286,8 @@ void setup()
             // SSH ---------------------------------------------------------------------------------------
             debugPort.printf("\n> SSH task setup\n");
             BaseType_t xReturned = xTaskCreatePinnedToCore(sshTask, "sshTask", 51200, nullptr,
-                                                           (configMAX_PRIORITIES - 1), &sshTaskHandle, ARDUINO_RUNNING_CORE);
+                                                           (configMAX_PRIORITIES - 1), &sshTaskHandle,
+                                                           ARDUINO_RUNNING_CORE);
             if (xReturned != pdPASS)
             {
                 debugPort.printf("  > Failed to create task\n");
@@ -309,7 +313,7 @@ void setup()
             minitel.println();
             minitel.println();
             minitel.println(" Ctrl+R to restart");
-            delay(advanced ? 2000 : 3000); // ok to use as no wifi is involved here
+            delay(advanced ? 2000 : 3000); // ok to use as no Wi-Fi is involved here
             minitel.cursor();
         } // --------------------------------------------------------------------------------------------------------------------------
     }
@@ -450,7 +454,7 @@ void loopSerial()
     }
 }
 
-String inputString(String defaultValue, int& exitCode, const char padChar, int (*httpHandler)())
+String inputString(const String& defaultValue, int& exitCode, const char padChar, int (*httpHandler)())
 {
     String out = defaultValue == nullptr ? "" : defaultValue;
     minitel.print(out);
@@ -539,14 +543,14 @@ String inputString(String defaultValue, int& exitCode, const char padChar, int (
     return out;
 }
 
-unsigned int numberOfChars(String str)
+unsigned int numberOfChars(const String& str)
 {
     // number of chars of a string including utf-8 multibyte characters
     unsigned int index = 0;
     unsigned int count = 0;
     while (index < str.length())
     {
-        byte car = str.charAt(index);
+        const byte car = str.charAt(index);
         if (car >> 5 == 0b110) index += 2; //utf-8 2 bytes pattern
         else if (car >> 4 == 0b1110) index += 3; // utf-8 3 bytes pattern
         else index++; //default (1 byte)
@@ -902,7 +906,7 @@ void showPrefs()
     minitel.attributs(CARACTERE_BLANC);
 }
 
-void printPassword(String pwd)
+void printPassword(const String& pwd)
 {
     if (pwd == nullptr || pwd == "")
     {
@@ -918,7 +922,7 @@ void printPassword(String pwd)
     }
 }
 
-void printStringValue(String s)
+void printStringValue(const String& s)
 {
     if (s == nullptr || s == "")
     {
@@ -1117,27 +1121,32 @@ void savePresets()
         minitel.attributs(CARACTERE_VERT);
         minitel.print("  Choose slot, ESC or SUMMARY to go back");
         minitel.smallMode();
-        while ((key = minitel.getKeyCode()) == 0) {}
+        while ((key = minitel.getKeyCode()) == 0)
+        {
+        }
         if (key == 27 || key == 4933 || key == 4934)
         {
             break;
         }
-        else if (key == 18 || key == 4937)
+        if (key == 18 || key == 4937)
         {
             // CTRL+R = RESET ou TS+CONNEXION
             reset();
         }
         else if ((key | 32) >= 'a' && (key | 32) <= 'a' + 20 - 1)
         {
-            int slot = (key | 32) - 'a';
+            const int slot = static_cast<int>(key | 32) - 'a';
             debugPort.printf("slot = %d\n", slot);
             minitel.newXY(1, 24);
             minitel.attributs(CARACTERE_VERT);
             minitel.print("      Name your slot, ESC to cancel");
             clearLineFromCursor();
             String presetName(presets[slot].presetName);
-            int exitCode = setParameter(3, 4 + slot, presetName, false, true, nullptr);
-            if (exitCode) continue;
+            const int exitCode = setParameter(3, 4 + slot, presetName, false, true, nullptr);
+            if (exitCode)
+            {
+                continue;
+            }
             if (presetName == "")
             {
                 minitel.attributs(CARACTERE_CYAN);
@@ -1177,19 +1186,21 @@ void loadPresets()
         minitel.attributs(CARACTERE_VERT);
         minitel.print("  Choose slot, ESC or SUMMARY to go back");
         minitel.smallMode();
-        while ((key = minitel.getKeyCode()) == 0) {}
+        while ((key = minitel.getKeyCode()) == 0)
+        {
+        }
         if (key == 27 || key == 4933 || key == 4934)
         {
             break;
         }
-        else if (key == 18 || key == 4937)
+        if (key == 18 || key == 4937)
         {
             // CTRL+R = RESET ou TS+CONNEXION
             reset();
         }
         else if ((key | 32) >= 'a' && (key | 32) <= 'a' + 20 - 1)
         {
-            int slot = (key | 32) - 'a';
+            const int slot = static_cast<int>(key | 32) - 'a';
             debugPort.printf("slot = %d\n", slot);
             if (presets[slot].presetName == "")
             {
@@ -1228,7 +1239,7 @@ void loadPresets()
     showPrefs();
 }
 
-void displayPresets(String title)
+void displayPresets(const String& title)
 {
     String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     minitel.newScreen();
@@ -1261,12 +1272,13 @@ void switchParameter(const int x, const int y, bool& destination)
     writeBool(destination);
 }
 
-int setParameter(const int x, const int y, String& destination, const bool mask, const bool allowBlank, int (*httpHandler)())
+int setParameter(const int x, const int y, String& destination, const bool mask, const bool allowBlank,
+                 int (*httpHandler)())
 {
     minitel.newXY(x, y);
     minitel.attributs(CARACTERE_BLANC);
     minitel.print(destination);
-    int len = 41 - x - numberOfChars(destination);
+    int len = 41 - x - static_cast<int>(numberOfChars(destination));
     debugPort.printf("************ %d ***********\n", len);
     if (len < 0) len = 0;
     for (int i = 0; i < len; ++i) minitel.print(".");
@@ -1275,11 +1287,7 @@ int setParameter(const int x, const int y, String& destination, const bool mask,
     String temp = inputString(destination, exitCode, '.', httpHandler);
     if (!exitCode)
     {
-        if (allowBlank)
-        {
-            destination = String(temp);
-        }
-        else if (temp.length() > 0)
+        if (allowBlank || temp.length() > 0)
         {
             destination = String(temp);
         }
@@ -1315,7 +1323,7 @@ int setParameter(const int x, const int y, String& destination, const bool mask,
 
 void setIntParameter(const int x, const int y, uint16_t& destination)
 {
-    String strParam = String(destination);
+    auto strParam = String(destination);
     if (strParam == "0") strParam = "";
     minitel.newXY(x, y);
     minitel.attributs(CARACTERE_BLANC);
@@ -1417,7 +1425,7 @@ void writeConnectionType(const byte connType)
 void separateUrl(String urlToSeparate)
 {
     urlToSeparate.trim();
-    String temp = String(urlToSeparate);
+    auto temp = String(urlToSeparate);
     temp.toLowerCase();
 
     ssl = false;
@@ -1575,9 +1583,9 @@ void sshTask(void* pvParameters)
         switch (key)
         {
         // redirect minitel special keys
-        case SOMMAIRE: key = 0x07;
-            break; //BEL : ring
-        case GUIDE: key = 0x07;
+        case SOMMAIRE:
+        case GUIDE:
+            key = 0x07;
             break; //BEL : ring
         case ANNULATION: key = 0x0515;
             break; //ctrl+E ctrl+U : end of line + remove left
@@ -1593,6 +1601,8 @@ void sshTask(void* pvParameters)
             break; //CR : validate command
         // intercept ctrl+c
         case 0x03: cancel = true;
+            break;
+        default:
             break;
         }
         // prepare data to send over ssh
@@ -1629,7 +1639,8 @@ void sshTask(void* pvParameters)
             minitel.println("as it may takes minutes to display on minitel.");
             // send CR to get new input line
             uint8_t cr = 0x0D;
-            sshClient.send(&cr, 1);
+            int res = sshClient.send(&cr, 1);
+            debugPort.printf("CR sent: %d", res);
         }
     }
     // Closing session
@@ -1700,14 +1711,14 @@ void webSocketEvent(const WStype_t type, uint8_t* payload, const size_t len)
         break;
 
     case WStype_CONNECTED:
-        debugPort.printf("[WS] Connected to url: %s\n", payload);
+        debugPort.printf("[WS] Connected to url: %p\n", payload);
         break;
 
     case WStype_TEXT:
         debugPort.printf("[WS] got %u chars\n", len);
         if (len > 0)
         {
-            debugPort.printf("  >  %s\n", payload);
+            debugPort.printf("  >  %p\n", payload);
             for (size_t i = 0; i < len; i++)
             {
                 minitel.writeByte(payload[i]);
@@ -1719,7 +1730,7 @@ void webSocketEvent(const WStype_t type, uint8_t* payload, const size_t len)
         debugPort.printf("[WS] got %u binaries\n", len);
         if (len > 0)
         {
-            debugPort.printf("  >  %s\n", payload);
+            debugPort.printf("  >  %p\n", payload);
             for (size_t i = 0; i < len; i++)
             {
                 minitel.writeByte(payload[i]);
@@ -1746,7 +1757,10 @@ void webSocketEvent(const WStype_t type, uint8_t* payload, const size_t len)
     case WStype_FRAGMENT_FIN:
         debugPort.printf("[WS] WStype_FRAGMENT_FIN\n");
         break;
+    default:
+        break;
     }
+
 }
 
 void writePresets()
@@ -1754,23 +1768,23 @@ void writePresets()
     initFS();
     File file = SPIFFS.open("/telnetpro-presets.cnf", FILE_WRITE);
 
-    for (int i = 0; i < 20; ++i)
+    for (const auto& preset : presets)
     {
-        DynamicJsonDocument doc(1024);
-        doc["presetName"] = presets[i].presetName;
-        doc["url"] = presets[i].url;
-        doc["scroll"] = presets[i].scroll;
-        doc["echo"] = presets[i].echo;
-        doc["col80"] = presets[i].col80;
-        doc["prestel"] = presets[i].prestel;
-        doc["altcharset"] = presets[i].altcharset;
-        doc["privKey"] = presets[i].privKey;
-        doc["connectionType"] = presets[i].connectionType;
-        doc["ping_ms"] = presets[i].ping_ms;
-        doc["protocol"] = presets[i].protocol;
-        doc["sshUser"] = presets[i].sshUser;
-        doc["sshPass"] = presets[i].sshPass;
-        doc["sshPrivKey"] = presets[i].sshPrivKey;
+        auto doc = JsonDocument();
+        doc["presetName"] = preset.presetName;
+        doc["url"] = preset.url;
+        doc["scroll"] = preset.scroll;
+        doc["echo"] = preset.echo;
+        doc["col80"] = preset.col80;
+        doc["prestel"] = preset.prestel;
+        doc["altcharset"] = preset.altcharset;
+        doc["privKey"] = preset.privKey;
+        doc["connectionType"] = preset.connectionType;
+        doc["ping_ms"] = preset.ping_ms;
+        doc["protocol"] = preset.protocol;
+        doc["sshUser"] = preset.sshUser;
+        doc["sshPass"] = preset.sshPass;
+        doc["sshPrivKey"] = preset.sshPrivKey;
 
         if (serializeJson(doc, file) == 0)
         {
@@ -1786,57 +1800,57 @@ void readPresets()
     int countNonEmptySlots = 0;
     initFS();
     File file = SPIFFS.open("/telnetpro-presets.cnf", FILE_READ);
-    DynamicJsonDocument doc(1024);
-    for (int i = 0; i < 20; ++i)
+    auto doc = JsonDocument();
+    for (auto& preset : presets)
     {
         DeserializationError error = deserializeJson(doc, file);
         if (error)
         {
-            presets[i].presetName = "";
-            presets[i].url = "";
-            presets[i].scroll = false;
-            presets[i].echo = false;
-            presets[i].col80 = false;
-            presets[i].prestel = false;
-            presets[i].altcharset = false;
-            presets[i].privKey = false;
-            presets[i].connectionType = 0;
-            presets[i].ping_ms = 0;
-            presets[i].protocol = "";
-            presets[i].sshUser = "";
-            presets[i].sshPass = "";
-            presets[i].sshPrivKey = "";
+            preset.presetName = "";
+            preset.url = "";
+            preset.scroll = false;
+            preset.echo = false;
+            preset.col80 = false;
+            preset.prestel = false;
+            preset.altcharset = false;
+            preset.privKey = false;
+            preset.connectionType = 0;
+            preset.ping_ms = 0;
+            preset.protocol = "";
+            preset.sshUser = "";
+            preset.sshPass = "";
+            preset.sshPrivKey = "";
         }
         else
         {
             String _presetName = doc["presetName"];
-            presets[i].presetName = _presetName == "null" ? "" : _presetName;
+            preset.presetName = _presetName == "null" ? "" : _presetName;
             String _url = doc["url"];
-            presets[i].url = _url == "null" ? "" : _url;
+            preset.url = _url == "null" ? "" : _url;
             bool _scroll = doc["scroll"];
-            presets[i].scroll = _scroll;
+            preset.scroll = _scroll;
             bool _echo = doc["echo"];
-            presets[i].echo = _echo;
+            preset.echo = _echo;
             bool _col80 = doc["col80"];
-            presets[i].col80 = _col80;
+            preset.col80 = _col80;
             bool _prestel = doc["prestel"];
-            presets[i].prestel = _prestel;
+            preset.prestel = _prestel;
             bool _altcharset = doc["altcharset"];
-            presets[i].altcharset = _altcharset;
+            preset.altcharset = _altcharset;
             bool _privKey = doc["privKey"];
-            presets[i].privKey = _privKey;
+            preset.privKey = _privKey;
             byte _connectionType = doc["connectionType"];
-            presets[i].connectionType = _connectionType;
+            preset.connectionType = _connectionType;
             int _ping_ms = doc["ping_ms"];
-            presets[i].ping_ms = _ping_ms;
+            preset.ping_ms = _ping_ms;
             String _protocol = doc["protocol"];
-            presets[i].protocol = _protocol == "null" ? "" : _protocol;
+            preset.protocol = _protocol == "null" ? "" : _protocol;
             String _sshUser = doc["sshUser"];
-            presets[i].sshUser = _sshUser == "null" ? "" : _sshUser;
+            preset.sshUser = _sshUser == "null" ? "" : _sshUser;
             String _sshPass = doc["sshPass"];
-            presets[i].sshPass = _sshPass == "null" ? "" : _sshPass;
+            preset.sshPass = _sshPass == "null" ? "" : _sshPass;
             String _sshPrivKey = doc["sshPrivKey"];
-            presets[i].sshPrivKey = _sshPrivKey == "null" ? "" : _sshPrivKey;
+            preset.sshPrivKey = _sshPrivKey == "null" ? "" : _sshPrivKey;
 
             ++countNonEmptySlots;
         }
@@ -2241,12 +2255,15 @@ void showHelp()
     uint32_t key;
     do
     {
-        while ((key = minitel.getKeyCode()) == 0) {}
+        while ((key = minitel.getKeyCode()) == 0)
+        {
+        }
         if (key == 27 || key == 4933 || key == 4934)
         {
             break;
         }
-        else if (key == 18)
+
+        if (key == 18)
         {
             // CTRL+R = RESET
             //reset();
